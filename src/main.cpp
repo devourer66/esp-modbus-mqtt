@@ -47,7 +47,7 @@ extern "C" {
 static char HOSTNAME[24] = "ESP-MM-FFFFFFFFFFFFFFFF";
 static const char __attribute__((__unused__)) *TAG = "Main";
 
-// static const char *FIRMWARE_URL = "https://domain.com/path/file.bin";
+//static const char *FIRMWARE_URL = "https://domain.com/path/file.bin";
 static const char *FIRMWARE_VERSION = "000.000.024";
 
 // instanciate WiFiManager object
@@ -154,7 +154,7 @@ void onMqttMessage(char *topic, char *payload,
     ESP_LOGD(TAG, "MQTT OTA update requested");
     vTaskResume(ota_update_task_handler);
     return;
-/*
+
 // TODO(gmasse): fix esp_log_level_set
   } else if (suffix == "loglevel") {
     ESP_LOGD(TAG, "MQTT log level update requested");
@@ -190,7 +190,7 @@ void onMqttMessage(char *topic, char *payload,
           break;
       }
     }
-*/
+
   } else {
     ESP_LOGW(TAG, "Unknow MQTT topic received: %s", topic);
   }
@@ -288,7 +288,7 @@ void setup() {
   Serial.begin(MONITOR_SPEED);
   while (!Serial) continue;
   Serial.setDebugOutput(true);
-/*
+
 // TODO(gmasse): fix esp_log_level_set
   esp_log_level_set("*", ESP_LOG_VERBOSE);
   esp_log_level_set("ESP_base", ESP_LOG_INFO);
@@ -305,7 +305,7 @@ void setup() {
   ESP_LOGI(TAG, "Info");
   ESP_LOGD(TAG, "Debug");
   ESP_LOGV(TAG, "Verbose");
-*/
+
 
   snprintf(HOSTNAME, sizeof(HOSTNAME), "ESP-MM-%llX", ESP.getEfuseMac());  // setting hostname
 

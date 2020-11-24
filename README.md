@@ -103,7 +103,7 @@ hash -r
 cp platformio.ini.dist platformio.ini
 (edit platformio.ini if needed)
 export PIO_FIRMWARE_URL="http://domain.com/firmware.bin"
-export PIO_MQTT_HOST_IP=11.22.33.44
+export PIO_MQTT_HOST_IP=10.1.2.143
 export PIO_MQTT_PORT=1883
 export PIO_MQTT_TOPIC=mytopic
 platformio run
