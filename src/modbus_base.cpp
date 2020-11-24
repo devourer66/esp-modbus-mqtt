@@ -51,7 +51,7 @@ void postTransmission() {
 }
 
 void initModbus() {
-  Serial2.begin(MODBUS_BAUDRATE, SERIAL_8N1, RXD, TXD);  // Using ESP32 UART2 for Modbus
+  Serial2.begin(MODBUS_BAUDRATE, SERIAL_8E1, RXD, TXD);  // Using ESP32 UART2 for Modbus
   modbus_client.begin(MODBUS_UNIT, Serial2);
 
   // do we have a flow control pin?
@@ -104,14 +104,31 @@ bool _getModbusResultMsg(ModbusMaster *node, uint8_t result) {
   return false;
 }
 
-bool _getModbusValue(uint16_t register_id, modbus_entity_t modbus_entity, uint16_t *value_ptr) {
+bool _getModbusValue(uint16_t register_id, modbus_entity_t modbus_entity, uint16_t *value_ptr, float_t *fvalue_ptr=NULL) {
   ESP_LOGD(TAG, "Requesting data");
   for (uint8_t i = 1; i <= MODBUS_RETRIES + 1; ++i) {
     ESP_LOGV(TAG, "Trial %d/%d", i, MODBUS_RETRIES + 1);
+    uint8_t result;
     switch (modbus_entity) {
       case MODBUS_TYPE_HOLDING:
-        uint8_t result;
         result = modbus_client.readHoldingRegisters(register_id, 1);
+        if (_getModbusResultMsg(&modbus_client, result)) {
+          *value_ptr = modbus_client.getResponseBuffer(0);
+          ESP_LOGV(TAG, "Data read: %x", *value_ptr);
+          return true;
+        }
+        break;
+      case MODBUS_TYPE_HOLDING_F:
+        result = modbus_client.readHoldingRegisters(register_id, 2);
+        if (_getModbusResultMsg(&modbus_client, result)) {
+          *value_ptr = modbus_client.getResponseBuffer(0);
+          memcpy(fvalue_ptr, value_ptr, sizeof *fvalue_ptr);
+          ESP_LOGV(TAG, "Data read: %#08x", *fvalue_ptr);
+          return true;
+        }
+        break;
+      case MODBUS_TYPE_COIL:
+        result = modbus_client.readCoils(register_id, 1);
         if (_getModbusResultMsg(&modbus_client, result)) {
           *value_ptr = modbus_client.getResponseBuffer(0);
           ESP_LOGV(TAG, "Data read: %x", *value_ptr);
@@ -140,7 +157,7 @@ String _toBinary(uint16_t input) {
     return output;
 }
 
-bool _decodeDiematicDecimal(uint16_t int_input, int8_t decimals, float *value_ptr) {
+bool _decodeDiematicDecimal(uint16_t int_input, int8_t decimals, float_t *value_ptr) {
   ESP_LOGV(TAG, "Decoding %#x with %d decimal(s)", int_input, decimals);
   if (int_input == 65535) {
     value_ptr = nullptr;
@@ -168,13 +185,18 @@ void readModbusRegisterToJson(uint16_t register_id, ArduinoJson::JsonVariant var
       // register found
       ESP_LOGD(TAG, "Register id=%d type=0x%x name=%s", registers[i].id, registers[i].type, registers[i].name);
       uint16_t raw_value;
-      if (_getModbusValue(registers[i].id, registers[i].modbus_entity, &raw_value)) {
-        ESP_LOGV(TAG, "Raw value: %s=%#06x", registers[i].name, raw_value);
+      float_t raw_float_value;
+      if (_getModbusValue(registers[i].id, registers[i].modbus_entity, &raw_value, &raw_float_value)) {
+        ESP_LOGV(TAG, "Raw value: %s=%#08x", registers[i].name, raw_value);
         switch (registers[i].type) {
           case REGISTER_TYPE_U16:
-            ESP_LOGV(TAG, "Value: %u", raw_value);
+            ESP_LOGI(TAG, "Value: %s=%u", registers[i].name, raw_value);
             variant[registers[i].name] = raw_value;
             break;
+          case REGISTER_TYPE_FLOAT:
+            ESP_LOGI(TAG, "Value: %s=%f", registers[i].name, raw_float_value);
+            variant[registers[i].name] = raw_float_value;
+            break;  
           case REGISTER_TYPE_DIEMATIC_ONE_DECIMAL:
             float final_value;
             if (_decodeDiematicDecimal(raw_value, 1, &final_value)) {
